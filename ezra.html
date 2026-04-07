@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EZRA — SRT Aligner</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0f0f11;--bg2:#17171a;--bg3:#1f1f24;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+  --text:#e8e6e0;--text2:#888580;--text3:#555350;
+  --accent:#d4a843;--accent2:#3d2e0e;--accentt:#0a0800;
+  --warn:#f0a050;--warn2:#3d2a10;
+  --danger:#e05050;--danger2:#3d1414;
+  --info:#5090e0;--info2:#142040;
+  --green:#5ce6a0;--green2:#1a4d36;
+  --mono:'IBM Plex Mono',monospace;--sans:'Sora',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── Header ── */
+header{padding:0;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;}
+.header-main{display:flex;align-items:center;gap:16px;padding:14px 24px;}
+.logo-wrap{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.logo-box{width:38px;height:38px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.logo-box svg{width:20px;height:20px;}
+.logo-name{font-size:22px;font-weight:700;letter-spacing:0.12em;color:var(--accent);font-family:var(--mono);}
+.logo-sub{font-size:10px;color:var(--text2);font-weight:300;letter-spacing:0.05em;margin-top:1px;}
+.header-desc{flex:1;padding-left:8px;border-left:1px solid var(--border);}
+.header-desc p{font-size:12px;color:var(--text2);line-height:1.5;}
+.header-desc strong{color:var(--text);font-weight:500;}
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.saweria-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:8px;background:var(--accent2);border:1px solid var(--accent);color:var(--accent);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;transition:background 0.15s;}
+.saweria-btn:hover{background:#4d3a14;}
+.saweria-btn svg{width:14px;height:14px;flex-shrink:0;}
+.verse-bar{padding:7px 24px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.verse-text{font-family:var(--mono);font-size:10px;color:var(--text3);font-style:italic;}
+.verse-ref{font-family:var(--mono);font-size:10px;color:var(--accent);margin-left:6px;}
+
+/* ── Workspace ── */
+.main{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr auto;min-height:0;}
+.panel{display:flex;flex-direction:column;border-right:1px solid var(--border);min-height:280px;}
+.panel:last-child{border-right:none;}
+.panel-full{grid-column:1/-1;border-right:none;border-top:1px solid var(--border);}
+.ph{padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg2);flex-shrink:0;}
+.ph-title{font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--text2);}
+.pill{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:12px;border:1px solid var(--border);color:var(--text3);}
+.ph-actions{margin-left:auto;display:flex;gap:6px;align-items:center;}
+.btn{font-family:var(--sans);font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);cursor:pointer;transition:background 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+.btn:hover{background:#2a2a30;}
+.btn:disabled{opacity:0.35;cursor:not-allowed;}
+.btn svg{width:12px;height:12px;flex-shrink:0;}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accentt);font-weight:700;}
+.btn.primary:hover{background:#e0b857;}
+.btn.primary:disabled{background:var(--bg3);border-color:var(--border2);color:var(--text3);}
+.drop-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:background 0.15s;}
+.drop-zone:hover{background:rgba(255,255,255,0.015);}
+.drop-zone.dragover{background:rgba(212,168,67,0.05);outline:1px dashed var(--accent);outline-offset:-8px;}
+.drop-icon{width:36px;height:36px;border-radius:8px;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;}
+.drop-icon svg{width:18px;height:18px;color:var(--text2);}
+.drop-label{font-size:12px;color:var(--text2);}
+.drop-sub{font-size:10px;color:var(--text3);font-family:var(--mono);}
+.panel.loaded .drop-zone{display:none;}
+.has-content{display:none;flex:1;flex-direction:column;min-height:0;}
+.panel.loaded .has-content{display:flex;}
+textarea{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--text);font-family:var(--mono);font-size:12px;line-height:1.9;padding:14px 18px;width:100%;}
+textarea::placeholder{color:var(--text3);}
+
+/* ── Result ── */
+.result-wrap{flex:1;overflow-y:auto;padding:12px 18px;display:flex;flex-direction:column;gap:4px;}
+.srt-block{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color 0.15s;}
+.srt-block:hover{border-color:var(--border2);}
+.srt-meta{display:flex;align-items:center;gap:10px;padding:5px 12px;background:var(--bg3);border-bottom:1px solid var(--border);}
+.srt-num{font-family:var(--mono);font-size:10px;color:var(--text3);min-width:20px;}
+.srt-time{font-family:var(--mono);font-size:10px;color:var(--text2);flex:1;}
+.srt-wc{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.srt-body{padding:8px 12px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:36px;}
+.token{font-family:var(--mono);font-size:12px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:opacity 0.1s;user-select:none;}
+.token.match {background:rgba(92,230,160,0.07);border-color:rgba(92,230,160,0.18);color:var(--green);}
+.token.sub   {background:rgba(80,144,224,0.07);border-color:rgba(80,144,224,0.18);color:var(--info);}
+.token.super {background:rgba(240,160,80,0.07);border-color:rgba(240,160,80,0.18);color:var(--warn);}
+.token.added {background:rgba(224,80,80,0.07);border-color:rgba(224,80,80,0.18);color:var(--danger);}
+.token.edited{background:rgba(212,168,67,0.1);border-color:rgba(212,168,67,0.3);color:var(--accent);}
+.token:hover{opacity:0.7;}
+.token-input{font-family:var(--mono);font-size:12px;padding:2px 7px;border-radius:4px;border:1px solid var(--info);background:var(--info2);color:var(--text);outline:none;min-width:40px;}
+.srt-orig{padding:4px 12px 6px;font-family:var(--mono);font-size:10px;color:var(--text3);border-top:1px solid var(--border);line-height:1.5;}
+.empty-msg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);font-size:12px;text-align:center;padding:40px;}
+.empty-msg svg{width:32px;height:32px;opacity:0.2;}
+.empty-msg .em-title{font-size:13px;color:var(--text2);}
+.stats-bar{display:flex;gap:16px;padding:8px 18px;border-top:1px solid var(--border);background:var(--bg2);font-family:var(--mono);font-size:11px;color:var(--text2);flex-shrink:0;flex-wrap:wrap;align-items:center;}
+.sdot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;}
+.sdot.match{background:var(--green);}.sdot.sub{background:var(--info);}.sdot.super{background:var(--warn);}.sdot.added{background:var(--danger);}
+::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
+.srt-block{animation:fadeUp 0.15s ease both;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-main">
+    <div class="logo-wrap">
+      <div class="logo-box">
+        <svg viewBox="0 0 20 20" fill="none" stroke="#0a0800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 5h14M3 9h10M3 13h12M3 17h8"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-name">EZRA</div>
+        <div class="logo-sub">SRT Text Aligner</div>
+      </div>
+    </div>
+    <div class="header-desc">
+      <p>
+        Dibuat untuk membantu <strong>koreksi hasil SRT dari AI</strong> yang masih sering salah.<br>
+        Jika kamu punya teks referensi yang benar, gunakan EZRA untuk menyelaraskannya ke subtitle kamu.
+      </p>
+    </div>
+    <div class="header-actions">
+      <a class="saweria-btn" href="https://saweria.co/emberdanmesin" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M8 2C5.24 2 3 4.24 3 7c0 2.1 1.27 3.9 3.1 4.7L6 14h4l-.1-2.3C11.73 10.9 13 9.1 13 7c0-2.76-2.24-5-5-5z"/>
+          <path d="M6 14h4"/>
+        </svg>
+        Dukung di Saweria
+      </a>
+    </div>
+  </div>
+  <div class="verse-bar">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 2.5C1 2.5 2 1 4 2.5c2 1.5 2 3.5 2 3.5S6 4 8 2.5C10 1 11 2.5 11 2.5v7S10 11 8 9.5C6 8 6 6 6 6S6 8 4 9.5C2 11 1 9.5 1 9.5V2.5Z" fill="none" stroke="#d4a843" stroke-width="1" stroke-linejoin="round"/></svg>
+    <span class="verse-text">"Karena Ezra telah bertekad untuk meneliti Taurat TUHAN dan melakukannya serta mengajar ketetapan dan peraturan di antara orang Israel."</span>
+    <span class="verse-ref">— Ezra 7:10</span>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Panel SRT -->
+  <div class="panel" id="panel-srt">
+    <div class="ph">
+      <span class="ph-title">File SRT</span>
+      <span class="pill" id="srt-pill">0 subtitle</span>
+      <div class="ph-actions">
+        <button class="btn" id="btn-cls-srt" onclick="clearSRT()" style="display:none">Hapus</button>
+        <label class="btn" for="file-srt">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 12v2h12v-2"/></svg>
+          Buka .srt
+          <input type="file" id="file-srt" accept=".srt,.txt" style="display:none" onchange="loadSRT(this)">
+        </label>
+      </div>
+    </div>
+    <div class="drop-zone" id="dz-srt" onclick="document.getElementById('file-srt').click()" ondragover="dov(event,'dz-srt')" ondragleave="dol('dz-srt')" ondrop="dof(event,'srt')">
+      <div class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
+      <p class="drop-label">Klik atau seret file .srt</p>
+      <p class="drop-sub">Subtitle dari AI yang akan dikoreksi</p>
+    </div>
+    <div class="has-content">
+      <textarea id="srt-ta" placeholder="Atau paste teks SRT di sini..." oninput="parseSRTInput()"></textarea>
+    </div>
+  </div>
+
+  <!-- Panel Referensi -->
+  <div class="panel" id="panel-ref">
+    <div class="ph">
+      <span class="ph-title">Teks Referensi</span>
+      <span class="pill" id="ref-pill">0 kata</span>
+      <div class="ph-actions">
+        <button class="btn" id="btn-cls-ref" onclick="clearRef()" style="display:none">Hapus</button>
+        <label class="btn" for="file-ref">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 12v2h12v-2"/></svg>
+          Buka .txt
+          <input type="file" id="file-ref" accept=".txt,.srt" style="display:none" onchange="loadRef(this)">
+        </label>
+      </div>
+    </div>
+    <div class="drop-zone" id="dz-ref" onclick="document.getElementById('file-ref').click()" ondragover="dov(event,'dz-ref')" ondragleave="dol('dz-ref')" ondrop="dof(event,'ref')">
+      <div class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M4 4.5A2.5 2.5 0 016.5 7H20v13H6.5A2.5 2.5 0 014 17.5v-13z"/></svg></div>
+      <p class="drop-label">Klik atau seret file referensi</p>
+      <p class="drop-sub">Transkrip yang benar sebagai acuan</p>
+    </div>
+    <div class="has-content">
+      <textarea id="ref-ta" placeholder="Atau paste teks referensi di sini..." oninput="parseRefInput()"></textarea>
+    </div>
+  </div>
+
+  <!-- Panel Hasil -->
+  <div class="panel panel-full">
+    <div class="ph">
+      <span class="ph-title">Hasil — SRT Terkoreksi</span>
+      <span class="pill" id="res-pill">—</span>
+      <div style="display:flex;gap:12px;align-items:center;margin-left:16px;font-family:var(--mono);font-size:10px;color:var(--text2);">
+        <span><span class="sdot match"></span>cocok</span>
+        <span><span class="sdot sub"></span>sub-string</span>
+        <span><span class="sdot super"></span>super-string</span>
+        <span><span class="sdot added"></span>dari ref</span>
+      </div>
+      <div class="ph-actions">
+        <button class="btn primary" id="btn-run" onclick="run()" disabled>
+          <svg viewBox="0 0 16 16" fill="none"><polygon points="4,2 14,8 4,14" fill="currentColor"/></svg>
+          Jalankan
+        </button>
+        <button class="btn" id="btn-exp" onclick="exportSRT()" disabled>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 12v2h12v-2"/></svg>
+          Ekspor .srt
+        </button>
+      </div>
+    </div>
+
+    <div class="result-wrap" id="result-wrap">
+      <div class="empty-msg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <path d="M12 2C8.5 2 6 4 6 7c0 2.5 1.5 4.5 4 5.5V17h4v-4.5c2.5-1 4-3 4-5.5 0-3-2.5-5-6-5z"/>
+          <path d="M9 17h6M10 20h4"/>
+        </svg>
+        <span class="em-title">Muat file SRT dan teks referensi, lalu klik Jalankan</span>
+        <span style="font-size:10px;font-family:var(--mono);">Klik kata → edit &nbsp;·&nbsp; Klik dua kali → hapus</span>
+      </div>
+    </div>
+
+    <div class="stats-bar" id="stats-bar" style="display:none">
+      <span><span class="sdot match"></span><span id="st-m">0</span> cocok</span>
+      <span><span class="sdot sub"></span><span id="st-s">0</span> sub</span>
+      <span><span class="sdot super"></span><span id="st-sp">0</span> super</span>
+      <span><span class="sdot added"></span><span id="st-a">0</span> dari ref</span>
+      <span style="margin-left:auto;color:var(--text3);font-size:10px;">Klik kata → edit &nbsp;·&nbsp; Klik dua kali → hapus</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let srtBlocks=[],refTokens=[],aligned=[];
+
+function norm(s){return s.toLowerCase().replace(/[^a-z0-9\u00C0-\u024F]/g,'');}
+function tokenize(t){return t.trim().split(/\s+/).filter(Boolean);}
+function isSub(r,s){const rn=norm(r),sn=norm(s);return sn.includes(rn)&&rn!==sn;}
+function isSuper(r,s){const rn=norm(r),sn=norm(s);return rn.includes(sn)&&rn!==sn;}
+
+function parseSRT(text){
+  const blocks=[];
+  const chunks=text.trim().split(/\n\s*\n/);
+  for(const chunk of chunks){
+    const lines=chunk.trim().split('\n');
+    if(lines.length<2)continue;
+    let li=0;
+    const num=lines[li].trim();
+    if(!/^\d+$/.test(num))continue;
+    li++;
+    if(li>=lines.length)continue;
+    const time=lines[li].trim();
+    if(!time.includes('-->'))continue;
+    li++;
+    const textLines=lines.slice(li).map(l=>l.trim()).filter(Boolean);
+    const origText=textLines.join(' ');
+    const words=origText.split(/\s+/).filter(Boolean);
+    if(words.length===0)continue;
+    blocks.push({num,time,origText,words});
+  }
+  return blocks;
+}
+
+function alignAll(refToks,srtWords){
+  const result=[];
+  let i=0,j=0,lanjut=0;
+  while(i<refToks.length&&j<srtWords.length){
+    const r=refToks[i],s=srtWords[j];
+    if(norm(r)===norm(s)){result.push({word:r,type:'match'});i++;j++;lanjut=0;}
+    else if(isSub(r,s)){result.push({word:r,type:'sub'});i++;lanjut=0;}
+    else if(isSuper(r,s)){if(lanjut===0){result.push({word:r,type:'super'});lanjut=1;}j++;}
+    else{result.push({word:r,type:'added'});i++;lanjut=0;}
+  }
+  while(i<refToks.length){result.push({word:refToks[i],type:'added'});i++;}
+  return result;
+}
+
+function distribute(blocks,allToks){
+  const totalOrig=blocks.reduce((s,b)=>s+b.words.length,0);
+  const totalAl=allToks.length;
+  const result=[];
+  let pos=0;
+  for(let bi=0;bi<blocks.length;bi++){
+    const b=blocks[bi];
+    let count;
+    if(bi===blocks.length-1){count=totalAl-pos;}
+    else{
+      count=Math.round((b.words.length/totalOrig)*totalAl);
+      count=Math.max(1,Math.min(count,totalAl-pos-(blocks.length-bi-1)));
+    }
+    result.push({num:b.num,time:b.time,origText:b.origText,tokens:allToks.slice(pos,pos+count).map(t=>({...t}))});
+    pos+=count;
+  }
+  return result;
+}
+
+function setSRTText(text){
+  document.getElementById('srt-ta').value=text;
+  srtBlocks=parseSRT(text);
+  document.getElementById('panel-srt').classList.add('loaded');
+  document.getElementById('btn-cls-srt').style.display='';
+  document.getElementById('srt-pill').textContent=srtBlocks.length+' subtitle';
+  checkReady();
+}
+function loadSRT(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>setSRTText(e.target.result);r.readAsText(f);}
+function parseSRTInput(){const t=document.getElementById('srt-ta').value;if(t.trim()){srtBlocks=parseSRT(t);document.getElementById('panel-srt').classList.add('loaded');document.getElementById('btn-cls-srt').style.display='';document.getElementById('srt-pill').textContent=srtBlocks.length+' subtitle';}checkReady();}
+function clearSRT(){srtBlocks=[];document.getElementById('srt-ta').value='';document.getElementById('panel-srt').classList.remove('loaded');document.getElementById('srt-pill').textContent='0 subtitle';document.getElementById('btn-cls-srt').style.display='none';document.getElementById('file-srt').value='';checkReady();}
+
+function setRefText(text){
+  document.getElementById('ref-ta').value=text;
+  refTokens=tokenize(text);
+  document.getElementById('panel-ref').classList.add('loaded');
+  document.getElementById('btn-cls-ref').style.display='';
+  document.getElementById('ref-pill').textContent=refTokens.length+' kata';
+  checkReady();
+}
+function loadRef(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>setRefText(e.target.result);r.readAsText(f);}
+function parseRefInput(){const t=document.getElementById('ref-ta').value;if(t.trim()){refTokens=tokenize(t);document.getElementById('panel-ref').classList.add('loaded');document.getElementById('btn-cls-ref').style.display='';document.getElementById('ref-pill').textContent=refTokens.length+' kata';}checkReady();}
+function clearRef(){refTokens=[];document.getElementById('ref-ta').value='';document.getElementById('panel-ref').classList.remove('loaded');document.getElementById('ref-pill').textContent='0 kata';document.getElementById('btn-cls-ref').style.display='none';document.getElementById('file-ref').value='';checkReady();}
+
+function checkReady(){document.getElementById('btn-run').disabled=!(srtBlocks.length>0&&refTokens.length>0);}
+
+function run(){
+  const allSRT=srtBlocks.flatMap(b=>b.words);
+  const allToks=alignAll(refTokens,allSRT);
+  aligned=distribute(srtBlocks,allToks);
+  renderResult();
+  document.getElementById('btn-exp').disabled=false;
+}
+
+function renderResult(){
+  const wrap=document.getElementById('result-wrap');
+  wrap.innerHTML='';
+  document.getElementById('stats-bar').style.display='flex';
+  let sm=0,ss=0,ssp=0,sa=0;
+  aligned.forEach((blk,bi)=>{
+    sm+=blk.tokens.filter(t=>t.type==='match').length;
+    ss+=blk.tokens.filter(t=>t.type==='sub').length;
+    ssp+=blk.tokens.filter(t=>t.type==='super').length;
+    sa+=blk.tokens.filter(t=>t.type==='added').length;
+    const div=document.createElement('div');
+    div.className='srt-block';
+    div.style.animationDelay=Math.min(bi*0.025,0.4)+'s';
+    const meta=document.createElement('div');
+    meta.className='srt-meta';
+    meta.innerHTML=`<span class="srt-num">${blk.num}</span><span class="srt-time">${blk.time}</span><span class="srt-wc">${blk.tokens.length} kata</span>`;
+    div.appendChild(meta);
+    const body=document.createElement('div');
+    body.className='srt-body';
+    blk.tokens.forEach((tok,ti)=>body.appendChild(mkToken(tok,bi,ti)));
+    div.appendChild(body);
+    const orig=document.createElement('div');
+    orig.className='srt-orig';
+    orig.textContent='asli: '+blk.origText;
+    div.appendChild(orig);
+    wrap.appendChild(div);
+  });
+  document.getElementById('res-pill').textContent=aligned.length+' subtitle';
+  document.getElementById('st-m').textContent=sm;
+  document.getElementById('st-s').textContent=ss;
+  document.getElementById('st-sp').textContent=ssp;
+  document.getElementById('st-a').textContent=sa;
+}
+
+function mkToken(tok,bi,ti){
+  const sp=document.createElement('span');
+  sp.className='token '+tok.type;
+  sp.textContent=tok.word;
+  const titles={match:'Cocok dengan SRT',sub:'Sub-string dari SRT',super:'Super-string dari SRT',added:'Ditambahkan dari referensi',edited:'Diedit manual'};
+  sp.title=titles[tok.type]||'';
+  sp.onclick=e=>{e.stopPropagation();startEdit(sp,bi,ti);};
+  sp.ondblclick=e=>{e.stopPropagation();delToken(bi,ti);};
+  return sp;
+}
+
+function startEdit(sp,bi,ti){
+  const inp=document.createElement('input');
+  inp.className='token-input';
+  inp.value=aligned[bi].tokens[ti].word;
+  inp.style.width=Math.max(40,inp.value.length*8+18)+'px';
+  sp.replaceWith(inp);inp.focus();inp.select();
+  const commit=()=>{const v=inp.value.trim();if(v){aligned[bi].tokens[ti].word=v;aligned[bi].tokens[ti].type='edited';}renderResult();};
+  inp.onblur=commit;
+  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();commit();}if(e.key==='Escape')renderResult();};
+}
+
+function delToken(bi,ti){aligned[bi].tokens.splice(ti,1);renderResult();}
+
+function exportSRT(){
+  const lines=aligned.map(blk=>`${blk.num}\n${blk.time}\n${blk.tokens.map(t=>t.word).join(' ')}`);
+  const blob=new Blob([lines.join('\n\n')],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ezra-terkoreksi.srt';a.click();
+}
+
+function dov(e,id){e.preventDefault();document.getElementById(id).classList.add('dragover');}
+function dol(id){document.getElementById(id).classList.remove('dragover');}
+function dof(e,which){
+  e.preventDefault();dol('dz-'+which);
+  const f=e.dataTransfer.files[0];if(!f)return;
+  const r=new FileReader();r.onload=ev=>which==='srt'?setSRTText(ev.target.result):setRefText(ev.target.result);r.readAsText(f);
+}
+</script>
+</body>
+</html>
